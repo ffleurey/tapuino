@@ -132,7 +132,29 @@ void lcd_begin(uint8_t lcd_addr, uint8_t cols, uint8_t lines, uint8_t dotsize) {
   _cols = cols;
   _rows = lines;
   _backlightval = LCD_NOBACKLIGHT;
+
   i2c_init();
+
+  // Initialize MCP23017. All output + enable backlight
+  i2c_start((_addr << 1) | I2C_WRITE);
+  i2c_write(0x00);
+  i2c_write(0x00);
+  i2c_stop();   
+
+  i2c_start((_addr << 1) | I2C_WRITE);
+  i2c_write(0x01);
+  i2c_write(0x00);
+  i2c_stop();   
+
+//   // Write All outputs to PB: 0x01 and PA: 0xC0 (All backlight on)
+//   i2c_start((_addr << 1) | I2C_WRITE);
+//   i2c_write(0x12);		// Write MCP23017_GPIOA 
+//   i2c_write(!0xC0);	// First Byte for PortA
+//   i2c_write(!0x01);		// Second Byte for PortB
+//   i2c_stop();   
+
+  //_delay_ms(10); 
+
   _displayfunction = LCD_4BITMODE | LCD_1LINE | LCD_5x8DOTS;
   
 
@@ -191,6 +213,7 @@ void lcd_begin(uint8_t lcd_addr, uint8_t cols, uint8_t lines, uint8_t dotsize) {
 	command(LCD_ENTRYMODESET | _displaymode);
 
 	lcd_home();
+
 }
 
 // high level commands, for the user!
@@ -268,7 +291,7 @@ void lcd_print(char* msg) {
 void send(uint8_t value, uint8_t mode) {
 	uint8_t highnib = value >> 4;
 	uint8_t lownib = value & 0x0f;
-  write4bits(highnib, mode);
+  	write4bits(highnib, mode);
 	write4bits(lownib, mode); 
 }
 
@@ -284,10 +307,30 @@ void write4bits(uint8_t value, uint8_t mode) {
 	pulseEnable(res);
 }
 
-void expanderWrite(uint8_t _data){                                        
+void expanderWrite(uint8_t _data){
+
+	// Map the bytes for the MCP23017 shield
+	uint16_t pba = 0x0140; // keep the green backlight
+	if (_data & _BV(LCD_BIT_DATA0)) pba |= _BV(4)<<8;
+	if (_data & _BV(LCD_BIT_DATA1)) pba |= _BV(3)<<8;
+	if (_data & _BV(LCD_BIT_DATA2)) pba |= _BV(2)<<8;
+	if (_data & _BV(LCD_BIT_DATA3)) pba |= _BV(1)<<8;
+
+	if (_data & _BV(LCD_BIT_BACKLIGHT)) pba &= ~0x01C0;
+
+	if (_data & _BV(LCD_BIT_RS)) pba |= 0x8000;
+	if (_data & _BV(LCD_BIT_RW)) pba |= 0x4000;
+	if (_data & _BV(LCD_BIT_EN)) pba |= 0x2000;
+
+	// i2c_start((_addr << 1) | I2C_WRITE);
+	// i2c_write(_data);
+	// i2c_stop();   
+
 	i2c_start((_addr << 1) | I2C_WRITE);
-	i2c_write(_data);
-	i2c_stop();   
+  	i2c_write(0x12);		// Write MCP23017_GPIOA 
+  	i2c_write(pba & 0xFF);		// First Byte for PortA
+  	i2c_write(pba >> 8);		// Second Byte for PortB
+  	i2c_stop();   
 }
 
 void pulseEnable(uint8_t _data){
