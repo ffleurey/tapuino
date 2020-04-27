@@ -9,7 +9,7 @@
 
 // uncomment one of these sets for your specific LCD
 
-#define LCD_USE_1602_LCD_MODULE
+#define LCD_USE_ST7735_TFT_MODULE 1
 #define LCD_I2C_ADDR        0x20 // I2C address for the LCD 0x27?
 
 // #define LCD_USE_SSD1306_OLED_MODULE
